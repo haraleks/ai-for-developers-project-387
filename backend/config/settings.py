@@ -1,18 +1,13 @@
 """
 Настройки Django для Calendar Booking Service.
-
 Учебный проект: без базы данных (хранилище в памяти процесса),
-без аутентификации. Запускать одним процессом: python manage.py runserver.
+аутентификация по токену (Bearer). Запускать одним процессом.
 """
-
 from pathlib import Path
 
 BASE_DIR = Path(__file__).resolve().parent.parent
-
 SECRET_KEY = "django-insecure-calendar-booking-service-dev-key"
-
 DEBUG = True
-
 ALLOWED_HOSTS = ["*"]
 
 INSTALLED_APPS = [
@@ -27,18 +22,13 @@ MIDDLEWARE = [
 ]
 
 ROOT_URLCONF = "config.urls"
-
 WSGI_APPLICATION = "config.wsgi.application"
 
-# Отдельная база данных не используется: хранилище в памяти (api/store.py)
 DATABASES = {}
 
 LANGUAGE_CODE = "ru-ru"
-
 TIME_ZONE = "UTC"
-
 USE_I18N = True
-
 USE_TZ = True
 
 REST_FRAMEWORK = {
@@ -48,5 +38,4 @@ REST_FRAMEWORK = {
     "EXCEPTION_HANDLER": "api.exceptions.api_exception_handler",
 }
 
-# CORS: API предназначен для отдельного фронтенд-клиента (Vite dev-сервер)
 CORS_ALLOW_ALL_ORIGINS = True
