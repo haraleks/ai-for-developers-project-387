@@ -168,7 +168,10 @@ test.describe('Calendar Booking Service E2E Tests', () => {
     await expect(page.getByText('Подтверждение записи')).toBeVisible();
   });
 
-  test('Сценарий 3: Настройка доступности (Рабочие / Выходные дни)', async ({ page }) => {
+  const WINDOW_DAYS = 30;
+  const WEDNESDAY = 3;
+
+test('Сценарий 3: Настройка доступности (Рабочие / Выходные дни)', async ({ page }) => {
     // 1. Открываем кабинет владельца
     await page.goto('/owner');
     
@@ -204,10 +207,10 @@ test.describe('Calendar Booking Service E2E Tests', () => {
     // Получаем даты ближайших сред в рамках 30-дневного окна
     const today = new Date();
     const wednesdays: Date[] = [];
-    for (let i = 0; i < 30; i++) {
+    for (let i = 0; i < WINDOW_DAYS; i++) {
       const date = new Date(today);
       date.setDate(today.getDate() + i);
-      if (date.getDay() === 3) { // 3 - это среда
+      if (date.getDay() === WEDNESDAY) {
         wednesdays.push(date);
       }
     }
