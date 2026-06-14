@@ -6,9 +6,7 @@ on:
 
 jobs:
   opencode-review:
-    # Включаем проверку так, чтобы бот реагировал на код человека.
-    # PR от bot-аккаунтов пропускаем.
-    if: ${{ !endsWith(github.event.pull_request.user.login, '[bot]') }}
+    # Включаем проверку так, чтобы бот реагировал на код человека и бота
     runs-on: ubuntu-latest
     permissions:
       id-token: write      # Нужен для аутентификации через GitHub Actions
