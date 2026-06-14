@@ -105,10 +105,10 @@ function GuestPage() {
       setOwnerTimezone(fetchedTimezone)
       setSlots(fetchedSlots)
 
-      // Automatically select the first working day within the 14-day window (in owner's timezone)
+      // Automatically select the first working day within the 30-day window (in owner's timezone)
       const today = getTodayInTimezone(fetchedTimezone)
       let foundDate = null
-      for (let i = 0; i < 14; i++) {
+      for (let i = 0; i < 30; i++) {
         const d = new Date(today)
         d.setDate(today.getDate() + i)
         
@@ -176,13 +176,13 @@ function GuestPage() {
   const isWorkingDay = (date) => {
     if (!date) return false
     
-    // Check if day is within the 14-day window (using owner's timezone)
+    // Check if day is within the 30-day window (using owner's timezone)
     const todayMidnight = getTodayMidnightInOwnerTz()
     const dateInOwnerTz = getDateInOwnerTz(date)
     if (!dateInOwnerTz) return false
     
     const diffDays = Math.round((dateInOwnerTz - todayMidnight) / (24 * 60 * 60 * 1000))
-    if (diffDays < 0 || diffDays >= 14) return false
+    if (diffDays < 0 || diffDays >= 30) return false
 
     // Check if day is working in owner schedule (using owner's timezone day of week)
     const jsDay = dateInOwnerTz.getDay()
@@ -486,7 +486,7 @@ function GuestPage() {
                         Выбор даты встречи
                       </CardTitle>
                       <CardDescription>
-                        Выберите один из доступных дней в окне записи на ближайшие 14 дней.
+                        Выберите один из доступных дней в окне записи на ближайшие 30 дней.
                       </CardDescription>
                     </CardHeader>
                     <CardContent className="flex flex-col items-center gap-4">
@@ -500,7 +500,7 @@ function GuestPage() {
                           d.setHours(0, 0, 0, 0)
                           const t = getTodayMidnightInOwnerTz()
                           const diff = Math.round((d - t) / (24 * 60 * 60 * 1000))
-                          if (diff < 0 || diff >= 14) return true
+                          if (diff < 0 || diff >= 30) return true
                           return !isWorkingDay(date)
                         }}
                         modifiers={{

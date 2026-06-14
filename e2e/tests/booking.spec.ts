@@ -201,10 +201,10 @@ test.describe('Calendar Booking Service E2E Tests', () => {
     const firstEventCard = page.locator('div.rounded-xl').first();
     await firstEventCard.getByRole('button', { name: 'Выбрать время' }).click();
 
-    // Получаем даты ближайших сред в рамках 14-дневного окна
+    // Получаем даты ближайших сред в рамках 30-дневного окна
     const today = new Date();
     const wednesdays: Date[] = [];
-    for (let i = 0; i < 14; i++) {
+    for (let i = 0; i < 30; i++) {
       const date = new Date(today);
       date.setDate(today.getDate() + i);
       if (date.getDay() === 3) { // 3 - это среда
@@ -235,5 +235,65 @@ test.describe('Calendar Booking Service E2E Tests', () => {
     await page.getByRole('button', { name: 'Сохранить доступность' }).click();
     await expect(page.locator('text=Изменения сохранены!')).toBeVisible();
   });
+
+test('Сценарий 4: Таймзона владельца — отображение и смена в кабинете', async ({ page }) => {
+  await page.goto('/owner');
+  await expect(page.getByRole('heading', { name: 'Кабинет владельца' })).toBeVisible();
+
+  await page.getByRole('tab', { name: 'Рабочее время' }).click();
+  await expect(page.getByText('Часовой пояс владельца')).toBeVisible();
+
+  const timezoneTrigger = page.locator('#timezone-select');
+  await expect(timezoneTrigger).toContainText('Europe/Moscow');
+
+  await timezoneTrigger.click();
+  await page.locator('[role="option"]', { hasText: 'Asia/Vladivostok' }).click();
+  await expect(timezoneTrigger).toContainText('Asia/Vladivostok');
+
+  await page.getByRole('button', { name: 'Сохранить доступность' }).click();
+  await expect(page.locator('text=Изменения сохранены!')).toBeVisible();
+
+  await page.goto('/owner');
+  await page.getByRole('tab', { name: 'Рабочее время' }).click();
+  await expect(page.locator('#timezone-select')).toContainText('Asia/Vladivostok');
+
+  await page.locator('#timezone-select').click();
+  await page.locator('[role="option"]', { hasText: 'Europe/Moscow' }).click();
+  await page.getByRole('button', { name: 'Сохранить доступность' }).click();
+  await expect(page.locator('text=Изменения сохранены!')).toBeVisible();
+});
+
+test('Сценарий 5: Таймзона владельца отображается в интерфейсе гостя', async ({ page, request }) => {
+  const eventName = getUniqueName('Тест таймзоны');
+
+  const createRes = await request.post('http://127.0.0.1:8000/event-types', {
+    data: { name: eventName, description: 'Проверка таймзоны', durationMinutes: 30 }
+  });
+  expect(createRes.ok()).toBeTruthy();
+  const eventType = await createRes.json();
+
+  await page.goto('/guest');
+  const eventCard = page.locator('div.rounded-xl').filter({ hasText: eventName });
+  await eventCard.getByRole('button', { name: 'Выбрать время' }).click();
+
+  await expect(page.locator('text=Europe/Moscow').first()).toBeVisible();
+  await expect(page.getByText(/часовому поясу владельца/)).toBeVisible();
+
+  const firstSlotBtn = page.locator('button').filter({ hasText: /^\d{2}:\d{2}$/ }).first();
+  await expect(firstSlotBtn).toBeVisible();
+  await firstSlotBtn.click();
+
+  await expect(page.getByText('Подтверждение записи')).toBeVisible();
+  await expect(page.getByText(/Часовой пояс владельца/)).toBeVisible();
+  await expect(page.locator('text=Europe/Moscow')).toBeVisible();
+
+  await page.locator('#guest-name').fill('Гость Таймзона');
+  await page.locator('#guest-email').fill('tz-guest@example.com');
+  await page.getByRole('button', { name: 'Подтвердить запись' }).click();
+
+  await expect(page.getByText('Запись успешно создана!')).toBeVisible();
+  await expect(page.getByText(/Часовой пояс владельца/)).toBeVisible();
+  await expect(page.locator('font-mono', { hasText: 'Europe/Moscow' })).toBeVisible();
+});
 
 });

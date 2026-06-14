@@ -37,10 +37,10 @@ function EventTypePreviewPage() {
       setSchedule(fetchedSchedule)
       setSlots(fetchedSlots)
 
-      // Automatically select the first working day within the 14-day window
+      // Automatically select the first working day within the 30-day window
       const today = new Date()
       let foundDate = null
-      for (let i = 0; i < 14; i++) {
+      for (let i = 0; i < 30; i++) {
         const d = new Date(today)
         d.setDate(today.getDate() + i)
         
@@ -78,7 +78,7 @@ function EventTypePreviewPage() {
           // Select first working day
           const today = new Date()
           let foundDate = null
-          for (let i = 0; i < 14; i++) {
+          for (let i = 0; i < 30; i++) {
             const d = new Date(today)
             d.setDate(today.getDate() + i)
             
@@ -121,8 +121,8 @@ function EventTypePreviewPage() {
     const t = todayMidnight()
     const diffDays = Math.round((d - t) / (24 * 60 * 60 * 1000))
     
-    // Check if day is within the 14-day window
-    if (diffDays < 0 || diffDays >= 14) return false
+    // Check if day is within the 30-day window
+    if (diffDays < 0 || diffDays >= 30) return false
 
     // Check if day is working in owner schedule
     const jsDay = date.getDay()
@@ -225,7 +225,7 @@ function EventTypePreviewPage() {
                     Выбор даты встречи
                   </CardTitle>
                   <CardDescription>
-                    Выберите один из доступных дней в окне записи на ближайшие 14 дней.
+                    Выберите один из доступных дней в окне записи на ближайшие 30 дней.
                   </CardDescription>
                 </CardHeader>
                 <CardContent className="flex flex-col items-center gap-4">
@@ -239,8 +239,8 @@ function EventTypePreviewPage() {
                       d.setHours(0, 0, 0, 0)
                       const t = todayMidnight()
                       const diff = Math.round((d - t) / (24 * 60 * 60 * 1000))
-                      // Disable days outside 14 days window or if non-working
-                      if (diff < 0 || diff >= 14) return true
+                      // Disable days outside 30 days window or if non-working
+                      if (diff < 0 || diff >= 30) return true
                       return !isWorkingDay(date)
                     }}
                     modifiers={{

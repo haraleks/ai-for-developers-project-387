@@ -106,7 +106,7 @@ function generateLocalSlots(eventTypeId) {
   const ownerTimezone = scheduleData.timezone || DEFAULT_TIMEZONE
   const today = new Date(new Date().toLocaleString("en-US", { timeZone: ownerTimezone }))
 
-  for (let i = 0; i < 14; i++) {
+  for (let i = 0; i < 30; i++) {
     const currentDay = new Date(today)
     currentDay.setDate(today.getDate() + i)
     
@@ -200,7 +200,7 @@ export async function getEventType(id) {
 
 /**
  * GET /event-types/{id}/slots — слоты для типа события
- * на ближайшие 14 дней, начиная с текущей даты.
+ * на ближайшие 30 дней, начиная с текущей даты.
  */
 export async function listSlots(id) {
   try {

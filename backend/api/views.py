@@ -83,7 +83,7 @@ class EventTypeDetailView(APIView):
 
 
 class SlotListView(APIView):
-    """GET /event-types/{id}/slots — слоты на ближайшие 14 дней,
+    """GET /event-types/{id}/slots — слоты на ближайшие 30 дней,
     начиная с текущей даты. Слот занят, если на его время уже есть
     бронирование любого типа события."""
 
@@ -97,7 +97,7 @@ class BookingCreateView(APIView):
     """POST /bookings — создать бронирование на выбранный свободный слот.
 
     Бизнес-правила:
-    - время должно совпадать со слотом в окне записи (14 дней) — иначе 400;
+    - время должно совпадать со слотом в окне записи (30 дней) — иначе 400;
     - на одно и то же время нельзя создать две записи, даже если это
       разные типы событий — при конфликте возвращается 409.
     """
@@ -119,7 +119,7 @@ class BookingCreateView(APIView):
             slot = next((s for s in slots if s["startTime"] == start_time), None)
             if slot is None:
                 raise ValidationError(
-                    "Время начала не совпадает ни с одним слотом в окне записи (14 дней)"
+                    "Время начала не совпадает ни с одним слотом в окне записи (30 дней)"
                 )
             if not slot["isAvailable"]:
                 return Response(

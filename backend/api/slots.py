@@ -1,7 +1,7 @@
 """
 Генерация слотов календаря.
 
-Слоты вычисляются (не хранятся) на окно в 14 дней, начиная с текущей даты.
+Слоты вычисляются (не хранятся) на окно в 30 дней, начиная с текущей даты.
 Длительность слота определяется выбранным типом события. Времена расписания
 владельца трактуются в таймзоне владельца (IANA), затем конвертируются в UTC.
 
@@ -12,7 +12,7 @@
 from datetime import datetime, time, timedelta, timezone
 from zoneinfo import ZoneInfo
 
-WINDOW_DAYS = 14
+WINDOW_DAYS = 30
 
 
 def _parse_hhmm(value):
@@ -23,7 +23,7 @@ def _parse_hhmm(value):
 def generate_slots(event_type, schedule, bookings, owner_timezone="Europe/Moscow"):
     """
     Возвращает список слотов [{"startTime": datetime, "isAvailable": bool}]
-    на ближайшие 14 дней, начиная с текущей даты в таймзоне владельца.
+    на ближайшие 30 дней, начиная с текущей даты в таймзоне владельца.
     Слоты возвращаются в UTC для хранения и сравнения.
     """
     duration = timedelta(minutes=event_type["durationMinutes"])
