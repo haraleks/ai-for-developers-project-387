@@ -11,7 +11,7 @@ jobs:
     permissions:
       id-token: write      # Нужен для аутентификации через GitHub Actions
       contents: read       # Достаточно для чтения кода и diff
-      pull-requests: read  # Достаточно для чтения данных PR
+      pull-requests: write  # Достаточно для чтения данных PR
       issues: write        # Нужно, чтобы оставлять комментарии в PR
     steps:
       - name: Checkout repository
