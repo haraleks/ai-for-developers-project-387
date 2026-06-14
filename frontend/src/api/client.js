@@ -53,15 +53,20 @@ const DEFAULT_EVENT_TYPES = [
   { id: 2, name: "Техническое интервью", description: "Проверка технических навыков, лайвкодинг.", durationMinutes: 60 }
 ]
 
-const DEFAULT_SCHEDULE = [
-  { dayOfWeek: 1, isWorking: true, startTime: "09:00", endTime: "18:00" },
-  { dayOfWeek: 2, isWorking: true, startTime: "09:00", endTime: "18:00" },
-  { dayOfWeek: 3, isWorking: true, startTime: "09:00", endTime: "18:00" },
-  { dayOfWeek: 4, isWorking: true, startTime: "09:00", endTime: "18:00" },
-  { dayOfWeek: 5, isWorking: true, startTime: "09:00", endTime: "18:00" },
-  { dayOfWeek: 6, isWorking: false, startTime: "10:00", endTime: "16:00" },
-  { dayOfWeek: 7, isWorking: false, startTime: "10:00", endTime: "16:00" }
-]
+const DEFAULT_TIMEZONE = "Europe/Moscow"
+
+const DEFAULT_SCHEDULE = {
+  timezone: DEFAULT_TIMEZONE,
+  schedule: [
+    { dayOfWeek: 1, isWorking: true, startTime: "09:00", endTime: "18:00" },
+    { dayOfWeek: 2, isWorking: true, startTime: "09:00", endTime: "18:00" },
+    { dayOfWeek: 3, isWorking: true, startTime: "09:00", endTime: "18:00" },
+    { dayOfWeek: 4, isWorking: true, startTime: "09:00", endTime: "18:00" },
+    { dayOfWeek: 5, isWorking: true, startTime: "09:00", endTime: "18:00" },
+    { dayOfWeek: 6, isWorking: false, startTime: "10:00", endTime: "16:00" },
+    { dayOfWeek: 7, isWorking: false, startTime: "10:00", endTime: "16:00" }
+  ]
+}
 
 function getLocalData(key, defaultVal) {
   const data = localStorage.getItem(`cal_booking_${key}`)
@@ -76,20 +81,32 @@ function setLocalData(key, value) {
   localStorage.setItem(`cal_booking_${key}`, JSON.stringify(value))
 }
 
+function getDefaultOwner() {
+  return {
+    id: 1,
+    name: "Владелец календаря",
+    email: "owner@example.com",
+    timezone: DEFAULT_TIMEZONE
+  }
+}
+
 function generateLocalSlots(eventTypeId) {
   const eventTypes = getLocalData('event_types', DEFAULT_EVENT_TYPES)
   const eventType = eventTypes.find(e => e.id === Number(eventTypeId))
   if (!eventType) return []
 
-  const schedule = getLocalData('schedule', DEFAULT_SCHEDULE)
+  const scheduleData = getLocalData('schedule', DEFAULT_SCHEDULE)
+  const schedule = scheduleData.schedule || scheduleData // backward compatibility
   const bookings = getLocalData('bookings', [])
 
   const slots = []
   const duration = eventType.durationMinutes
 
-  // 14 days window starting today
-  const today = new Date()
-  for (let i = 0; i < 14; i++) {
+  // Use owner's timezone for "today"
+  const ownerTimezone = scheduleData.timezone || DEFAULT_TIMEZONE
+  const today = new Date(new Date().toLocaleString("en-US", { timeZone: ownerTimezone }))
+
+  for (let i = 0; i < 30; i++) {
     const currentDay = new Date(today)
     currentDay.setDate(today.getDate() + i)
     
@@ -183,7 +200,7 @@ export async function getEventType(id) {
 
 /**
  * GET /event-types/{id}/slots — слоты для типа события
- * на ближайшие 14 дней, начиная с текущей даты.
+ * на ближайшие 30 дней, начиная с текущей даты.
  */
 export async function listSlots(id) {
   try {
@@ -234,7 +251,7 @@ export async function createBooking(booking) {
   }
 }
 
-/** GET /owner/schedule — получить текущие настройки доступности владельца */
+/** GET /owner/schedule — получить текущие настройки доступности владельца (включая таймзону) */
 export async function getSchedule() {
   try {
     return await request('/owner/schedule')
@@ -246,17 +263,29 @@ export async function getSchedule() {
   }
 }
 
-/** PUT /owner/schedule — обновить настройки доступности владельца */
-export async function saveSchedule(schedule) {
+/** PUT /owner/schedule — обновить настройки доступности владельца (включая таймзону) */
+export async function saveSchedule(scheduleData) {
   try {
     return await request('/owner/schedule', {
       method: 'PUT',
-      body: JSON.stringify(schedule)
+      body: JSON.stringify(scheduleData)
     })
   } catch (err) {
     if (shouldFallback(err)) {
-      setLocalData('schedule', schedule)
-      return schedule
+      setLocalData('schedule', scheduleData)
+      return scheduleData
+    }
+    throw err
+  }
+}
+
+/** GET /owner — получить информацию о владельце (включая таймзону) */
+export async function getOwner() {
+  try {
+    return await request('/owner')
+  } catch (err) {
+    if (shouldFallback(err)) {
+      return getDefaultOwner()
     }
     throw err
   }

@@ -26,7 +26,7 @@ Hexlet learning project: Calendar Booking Service (Calendly-like). No backend ex
 ## Domain rules (from the contract)
 
 - No auth/registration; one predefined owner.
-- Slots are computed (not stored) for a 14-day window starting today.
+- Slots are computed (not stored) for a 30-day window starting today.
 - Two bookings can never share the same start time, even across event types — booking conflicts return 409.
 
 ## Constraints

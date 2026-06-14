@@ -19,7 +19,10 @@ from .serializers import (
     BookingSerializer,
     EventTypeCreateSerializer,
     EventTypeSerializer,
+    OwnerSerializer,
     ScheduleDaySerializer,
+    ScheduleRequestSerializer,
+    ScheduleResponseSerializer,
     SlotSerializer,
 )
 from .slots import generate_slots
@@ -80,13 +83,13 @@ class EventTypeDetailView(APIView):
 
 
 class SlotListView(APIView):
-    """GET /event-types/{id}/slots — слоты на ближайшие 14 дней,
+    """GET /event-types/{id}/slots — слоты на ближайшие 30 дней,
     начиная с текущей даты. Слот занят, если на его время уже есть
     бронирование любого типа события."""
 
     def get(self, request, id):
         event_type = _get_event_type_or_404(id)
-        slots = generate_slots(event_type, store.schedule, store.bookings)
+        slots = generate_slots(event_type, store.schedule, store.bookings, store.OWNER["timezone"])
         return Response(SlotSerializer(slots, many=True).data)
 
 
@@ -94,7 +97,7 @@ class BookingCreateView(APIView):
     """POST /bookings — создать бронирование на выбранный свободный слот.
 
     Бизнес-правила:
-    - время должно совпадать со слотом в окне записи (14 дней) — иначе 400;
+    - время должно совпадать со слотом в окне записи (30 дней) — иначе 400;
     - на одно и то же время нельзя создать две записи, даже если это
       разные типы событий — при конфликте возвращается 409.
     """
@@ -116,7 +119,7 @@ class BookingCreateView(APIView):
             slot = next((s for s in slots if s["startTime"] == start_time), None)
             if slot is None:
                 raise ValidationError(
-                    "Время начала не совпадает ни с одним слотом в окне записи (14 дней)"
+                    "Время начала не совпадает ни с одним слотом в окне записи (30 дней)"
                 )
             if not slot["isAvailable"]:
                 return Response(
@@ -141,25 +144,35 @@ class BookingCreateView(APIView):
 
 
 class OwnerScheduleView(APIView):
-    """GET /owner/schedule — текущие настройки доступности владельца.
-    PUT /owner/schedule — обновить настройки доступности."""
+    """GET /owner/schedule — текущие настройки доступности владельца (включая таймзону).
+    PUT /owner/schedule — обновить настройки доступности (включая таймзону)."""
 
     def get(self, request):
-        return Response(ScheduleDaySerializer(store.schedule, many=True).data)
+        data = {"timezone": store.OWNER["timezone"], "schedule": store.schedule}
+        return Response(ScheduleResponseSerializer(data).data)
 
     def put(self, request):
-        serializer = ScheduleDaySerializer(data=request.data, many=True)
+        serializer = ScheduleRequestSerializer(data=request.data)
         serializer.is_valid(raise_exception=True)
-        days = serializer.validated_data
+        data = serializer.validated_data
 
-        day_numbers = [day["dayOfWeek"] for day in days]
+        day_numbers = [day["dayOfWeek"] for day in data["schedule"]]
         if len(day_numbers) != len(set(day_numbers)):
             raise ValidationError("Дни недели в расписании не должны повторяться")
 
         with store.lock:
-            store.schedule = sorted(days, key=lambda day: day["dayOfWeek"])
+            store.OWNER["timezone"] = data["timezone"]
+            store.schedule = sorted(data["schedule"], key=lambda day: day["dayOfWeek"])
 
-        return Response(ScheduleDaySerializer(store.schedule, many=True).data)
+        response_data = {"timezone": store.OWNER["timezone"], "schedule": store.schedule}
+        return Response(ScheduleResponseSerializer(response_data).data)
+
+
+class OwnerView(APIView):
+    """GET /owner — информация о владельце (включая таймзону)."""
+
+    def get(self, request):
+        return Response(OwnerSerializer(store.OWNER).data)
 
 
 class OwnerBookingListView(APIView):

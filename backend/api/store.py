@@ -21,6 +21,7 @@ OWNER = {
     "id": 1,
     "name": "Владелец календаря",
     "email": "owner@example.com",
+    "timezone": "Europe/Moscow",
 }
 
 # Типы событий: {id: {"id", "name", "description", "durationMinutes"}}
@@ -65,6 +66,7 @@ def reset():
     with lock:
         event_types = {}
         bookings = {}
+        OWNER["timezone"] = "Europe/Moscow"
         schedule = [dict(day) for day in DEFAULT_SCHEDULE]
         _event_type_seq = 0
         _booking_seq = 0

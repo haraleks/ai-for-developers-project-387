@@ -3,7 +3,7 @@ import { useNavigate } from 'react-router-dom'
 import { 
   ArrowLeft, Clock, Calendar as CalendarIcon, 
   AlertCircle, RefreshCw, BookOpen, Lock, Users,
-  CheckCircle2, User, Mail, MessageSquare
+  CheckCircle2, User, Mail, MessageSquare, Globe, Info
 } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { Card, CardHeader, CardTitle, CardDescription, CardContent } from '@/components/ui/card'
@@ -23,6 +23,7 @@ function GuestPage() {
   const [selectedEventType, setSelectedEventType] = useState(null)
   const [schedule, setSchedule] = useState([])
   const [slots, setSlots] = useState([])
+  const [ownerTimezone, setOwnerTimezone] = useState("Europe/Moscow")
   
   const [selectedDate, setSelectedDate] = useState(undefined)
   const [isLoading, setIsLoading] = useState(true)
@@ -46,8 +47,12 @@ function GuestPage() {
     setIsLoading(true)
     setError(null)
     try {
-      const fetchedEventTypes = await client.listEventTypes()
+      const [fetchedEventTypes, fetchedOwner] = await Promise.all([
+        client.listEventTypes(),
+        client.getOwner()
+      ])
       setEventTypes(fetchedEventTypes)
+      setOwnerTimezone(fetchedOwner.timezone || "Europe/Moscow")
     } catch (err) {
       console.error(err)
       setError(err.message || 'Ошибка загрузки доступных типов встреч')
@@ -60,9 +65,13 @@ function GuestPage() {
     let isMounted = true
     const init = async () => {
       try {
-        const fetchedEventTypes = await client.listEventTypes()
+        const [fetchedEventTypes, fetchedOwner] = await Promise.all([
+          client.listEventTypes(),
+          client.getOwner()
+        ])
         if (isMounted) {
           setEventTypes(fetchedEventTypes)
+          setOwnerTimezone(fetchedOwner.timezone || "Europe/Moscow")
           setIsLoading(false)
         }
       } catch (err) {
@@ -85,17 +94,21 @@ function GuestPage() {
     setIsLoading(true)
     setError(null)
     try {
-      const [fetchedSchedule, fetchedSlots] = await Promise.all([
+      const [fetchedScheduleData, fetchedSlots] = await Promise.all([
         client.getSchedule(),
         client.listSlots(type.id)
       ])
+      // Handle both old format (array) and new format (object with timezone + schedule)
+      const fetchedSchedule = fetchedScheduleData.schedule || fetchedScheduleData
+      const fetchedTimezone = fetchedScheduleData.timezone || "Europe/Moscow"
       setSchedule(fetchedSchedule)
+      setOwnerTimezone(fetchedTimezone)
       setSlots(fetchedSlots)
 
-      // Automatically select the first working day within the 14-day window
-      const today = new Date()
+      // Automatically select the first working day within the 30-day window (in owner's timezone)
+      const today = getTodayInTimezone(fetchedTimezone)
       let foundDate = null
-      for (let i = 0; i < 14; i++) {
+      for (let i = 0; i < 30; i++) {
         const d = new Date(today)
         d.setDate(today.getDate() + i)
         
@@ -116,17 +129,26 @@ function GuestPage() {
     }
   }
 
+  // Get today's date in a specific timezone
+  const getTodayInTimezone = (timezone) => {
+    return new Date(new Date().toLocaleString("en-US", { timeZone: timezone }))
+  }
+
   // Reload slots for current event type
   const handleRefreshSlots = async () => {
     if (!selectedEventType) return
     setIsLoading(true)
     setError(null)
     try {
-      const [fetchedSchedule, fetchedSlots] = await Promise.all([
+      const [fetchedScheduleData, fetchedSlots] = await Promise.all([
         client.getSchedule(),
         client.listSlots(selectedEventType.id)
       ])
+      // Handle both old format (array) and new format (object with timezone + schedule)
+      const fetchedSchedule = fetchedScheduleData.schedule || fetchedScheduleData
+      const fetchedTimezone = fetchedScheduleData.timezone || "Europe/Moscow"
       setSchedule(fetchedSchedule)
+      setOwnerTimezone(fetchedTimezone)
       setSlots(fetchedSlots)
     } catch (err) {
       console.error(err)
@@ -136,25 +158,34 @@ function GuestPage() {
     }
   }
 
-  // Helpers to define calendar rules
-  const todayMidnight = () => {
-    const d = new Date()
-    d.setHours(0, 0, 0, 0)
-    return d
+  // Get today at midnight in owner's timezone
+  const getTodayMidnightInOwnerTz = () => {
+    const today = getTodayInTimezone(ownerTimezone)
+    today.setHours(0, 0, 0, 0)
+    return today
+  }
+
+  // Convert a date to owner's timezone for day-of-week calculation
+  const getDateInOwnerTz = (date) => {
+    if (!date) return null
+    // Create a new date at midnight in owner's timezone
+    const dateStr = date.toISOString().split('T')[0] // YYYY-MM-DD
+    return new Date(dateStr + 'T00:00:00')
   }
 
   const isWorkingDay = (date) => {
     if (!date) return false
-    const d = new Date(date)
-    d.setHours(0, 0, 0, 0)
-    const t = todayMidnight()
-    const diffDays = Math.round((d - t) / (24 * 60 * 60 * 1000))
     
-    // Check if day is within the 14-day window
-    if (diffDays < 0 || diffDays >= 14) return false
+    // Check if day is within the 30-day window (using owner's timezone)
+    const todayMidnight = getTodayMidnightInOwnerTz()
+    const dateInOwnerTz = getDateInOwnerTz(date)
+    if (!dateInOwnerTz) return false
+    
+    const diffDays = Math.round((dateInOwnerTz - todayMidnight) / (24 * 60 * 60 * 1000))
+    if (diffDays < 0 || diffDays >= 30) return false
 
-    // Check if day is working in owner schedule
-    const jsDay = date.getDay()
+    // Check if day is working in owner schedule (using owner's timezone day of week)
+    const jsDay = dateInOwnerTz.getDay()
     const dayOfWeek = jsDay === 0 ? 7 : jsDay
     const daySetting = schedule.find(s => s.dayOfWeek === dayOfWeek)
     return !!(daySetting && daySetting.isWorking)
@@ -287,6 +318,9 @@ function GuestPage() {
                 <div>
                   <span className="text-[10px] font-bold tracking-wider uppercase text-muted-foreground block">Дата и время</span>
                   <span className="font-semibold text-foreground">{formatDateTimeForDialog(newBooking.startTime)}</span>
+                  <span className="text-xs text-muted-foreground flex items-center gap-1 mt-1">
+                    <Globe className="size-3 text-primary" /> Часовой пояс владельца: <strong className="font-mono">{ownerTimezone}</strong>
+                  </span>
                 </div>
                 <div>
                   <span className="text-[10px] font-bold tracking-wider uppercase text-muted-foreground block">Ваши контакты</span>
@@ -452,7 +486,7 @@ function GuestPage() {
                         Выбор даты встречи
                       </CardTitle>
                       <CardDescription>
-                        Выберите один из доступных дней в окне записи на ближайшие 14 дней.
+                        Выберите один из доступных дней в окне записи на ближайшие 30 дней.
                       </CardDescription>
                     </CardHeader>
                     <CardContent className="flex flex-col items-center gap-4">
@@ -464,9 +498,9 @@ function GuestPage() {
                         disabled={(date) => {
                           const d = new Date(date)
                           d.setHours(0, 0, 0, 0)
-                          const t = todayMidnight()
+                          const t = getTodayMidnightInOwnerTz()
                           const diff = Math.round((d - t) / (24 * 60 * 60 * 1000))
-                          if (diff < 0 || diff >= 14) return true
+                          if (diff < 0 || diff >= 30) return true
                           return !isWorkingDay(date)
                         }}
                         modifiers={{
@@ -489,18 +523,31 @@ function GuestPage() {
                           <span>Выходной / Прошедший</span>
                         </div>
                       </div>
+                      {/* Timezone info */}
+                      <div className="flex items-center gap-1.5 text-xs text-muted-foreground mt-2 w-full justify-center">
+                        <Info className="size-3.5 text-primary" />
+                        <span>Дни недели и рабочие часы отображаются по часовому поясу владельца (<strong className="text-foreground">{ownerTimezone}</strong>). Выбранное время автоматически конвертируется в ваше локальное время.</span>
+                      </div>
                     </CardContent>
                   </Card>
 
                   {/* Right: Available Slots */}
                   <Card className="md:col-span-2 flex flex-col">
                     <CardHeader className="pb-3 border-b border-border/40">
-                      <CardTitle className="text-lg font-bold">
-                        Доступное время
-                      </CardTitle>
-                      <CardDescription className="capitalize">
-                        {selectedDate ? formatSelectedDateFull(selectedDate) : "Выберите дату в календаре"}
-                      </CardDescription>
+                      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2">
+                        <div>
+                          <CardTitle className="text-lg font-bold">
+                            Доступное время
+                          </CardTitle>
+                          <CardDescription className="capitalize">
+                            {selectedDate ? formatSelectedDateFull(selectedDate) : "Выберите дату в календаре"}
+                          </CardDescription>
+                        </div>
+                        <div className="flex items-center gap-1.5 text-xs text-muted-foreground bg-muted px-2.5 py-1.5 rounded-full border">
+                          <Globe className="size-3 text-primary" />
+                          <span>Часовой пояс владельца: <strong className="text-foreground font-mono">{ownerTimezone}</strong></span>
+                        </div>
+                      </div>
                     </CardHeader>
                     <CardContent className="flex-1 p-4">
                       {!selectedDate ? (
@@ -583,6 +630,10 @@ function GuestPage() {
                 </div>
                 <div className="text-xs text-muted-foreground flex items-center gap-1">
                   <Clock className="size-3.5 text-primary" /> {selectedEventType?.name} ({selectedEventType?.durationMinutes} минут)
+                </div>
+                <div className="text-xs text-muted-foreground flex items-center gap-1 mt-1">
+                  <Globe className="size-3.5 text-primary" />
+                  <span>Время показано в вашем местном часовом поясе. Часовой пояс владельца: <strong className="text-foreground font-mono">{ownerTimezone}</strong></span>
                 </div>
               </div>
 
