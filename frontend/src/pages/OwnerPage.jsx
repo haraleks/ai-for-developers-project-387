@@ -2,7 +2,7 @@ import { useState, useEffect } from 'react'
 import { Link } from 'react-router-dom'
 import { 
   ArrowLeft, Calendar, Clock, Plus, Edit, Trash2, 
-  Save, FileText, Check, AlertCircle, RefreshCw, CalendarDays, Eye
+  Save, FileText, Check, AlertCircle, RefreshCw, CalendarDays, Eye, Globe
 } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { Card, CardHeader, CardTitle, CardDescription, CardContent } from '@/components/ui/card'
@@ -12,6 +12,7 @@ import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { Badge } from '@/components/ui/badge'
 import { Switch } from '@/components/ui/switch'
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
 import * as client from '@/api/client'
 
 const DAY_NAMES = {
@@ -24,10 +25,30 @@ const DAY_NAMES = {
   7: "Воскресенье"
 }
 
+const TIMEZONES = [
+  { value: "Europe/Moscow", label: "Europe/Moscow (UTC+3)" },
+  { value: "Europe/Kaliningrad", label: "Europe/Kaliningrad (UTC+2)" },
+  { value: "Europe/Samara", label: "Europe/Samara (UTC+4)" },
+  { value: "Asia/Yekaterinburg", label: "Asia/Yekaterinburg (UTC+5)" },
+  { value: "Asia/Omsk", label: "Asia/Omsk (UTC+6)" },
+  { value: "Asia/Krasnoyarsk", label: "Asia/Krasnoyarsk (UTC+7)" },
+  { value: "Asia/Irkutsk", label: "Asia/Irkutsk (UTC+8)" },
+  { value: "Asia/Yakutsk", label: "Asia/Yakutsk (UTC+9)" },
+  { value: "Asia/Vladivostok", label: "Asia/Vladivostok (UTC+10)" },
+  { value: "Asia/Magadan", label: "Asia/Magadan (UTC+11)" },
+  { value: "Asia/Kamchatka", label: "Asia/Kamchatka (UTC+12)" },
+  { value: "UTC", label: "UTC (UTC+0)" },
+  { value: "Europe/London", label: "Europe/London (UTC+0/+1)" },
+  { value: "Europe/Berlin", label: "Europe/Berlin (UTC+1/+2)" },
+  { value: "America/New_York", label: "America/New_York (UTC-5/-4)" },
+  { value: "America/Los_Angeles", label: "America/Los_Angeles (UTC-8/-7)" },
+]
+
 function OwnerPage() {
   const [eventTypes, setEventTypes] = useState([])
   const [schedule, setSchedule] = useState([])
   const [bookings, setBookings] = useState([])
+  const [timezone, setTimezone] = useState("Europe/Moscow")
   
   const [isLoading, setIsLoading] = useState(true)
   const [error, setError] = useState(null)
@@ -50,13 +71,16 @@ function OwnerPage() {
     setIsLoading(true)
     setError(null)
     try {
-      const [fetchedEventTypes, fetchedSchedule, fetchedBookings] = await Promise.all([
+      const [fetchedEventTypes, fetchedScheduleData, fetchedBookings] = await Promise.all([
         client.listEventTypes(),
         client.getSchedule(),
         client.listOwnerBookings()
       ])
       setEventTypes(fetchedEventTypes)
+      // Handle both old format (array) and new format (object with timezone + schedule)
+      const fetchedSchedule = fetchedScheduleData.schedule || fetchedScheduleData
       setSchedule([...fetchedSchedule].sort((a, b) => a.dayOfWeek - b.dayOfWeek))
+      setTimezone(fetchedScheduleData.timezone || "Europe/Moscow")
       setBookings(fetchedBookings)
     } catch (err) {
       console.error(err)
@@ -70,14 +94,16 @@ function OwnerPage() {
     let isMounted = true
     const load = async () => {
       try {
-        const [fetchedEventTypes, fetchedSchedule, fetchedBookings] = await Promise.all([
+        const [fetchedEventTypes, fetchedScheduleData, fetchedBookings] = await Promise.all([
           client.listEventTypes(),
           client.getSchedule(),
           client.listOwnerBookings()
         ])
         if (isMounted) {
           setEventTypes(fetchedEventTypes)
+          const fetchedSchedule = fetchedScheduleData.schedule || fetchedScheduleData
           setSchedule([...fetchedSchedule].sort((a, b) => a.dayOfWeek - b.dayOfWeek))
+          setTimezone(fetchedScheduleData.timezone || "Europe/Moscow")
           setBookings(fetchedBookings)
           setIsLoading(false)
         }
@@ -201,7 +227,7 @@ function OwnerPage() {
         }
       }
 
-      await client.saveSchedule(schedule)
+      await client.saveSchedule({ timezone, schedule })
       setScheduleSuccess(true)
       setTimeout(() => setScheduleSuccess(false), 3000)
     } catch (err) {
@@ -376,6 +402,29 @@ function OwnerPage() {
                     </div>
                   </div>
                 </CardHeader>
+                <CardContent className="pb-4">
+                  <div className="mb-6">
+                    <Label htmlFor="timezone-select" className="block text-sm font-medium mb-2 flex items-center gap-1.5">
+                      <Globe className="size-4" />
+                      Часовой пояс владельца
+                    </Label>
+                    <Select value={timezone} onValueChange={setTimezone}>
+                      <SelectTrigger id="timezone-select" className="w-full max-w-xs">
+                        <SelectValue placeholder="Выберите часовой пояс" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        {TIMEZONES.map((tz) => (
+                          <SelectItem key={tz.value} value={tz.value}>
+                            {tz.label}
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                    <p className="text-xs text-muted-foreground mt-1.5">
+                      Рабочие часы ниже указываются в этом часовом поясе. Слоты для гостей будут автоматически пересчитаны в их локальное время.
+                    </p>
+                  </div>
+                </CardContent>
                 <CardContent className="divide-y divide-border">
                   {schedule.map((day) => (
                     <div key={day.dayOfWeek} className="flex flex-col py-4 sm:flex-row sm:items-center sm:justify-between gap-4 first:pt-0 last:pb-0">

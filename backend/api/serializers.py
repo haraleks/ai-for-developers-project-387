@@ -59,6 +59,15 @@ class BookingSerializer(serializers.Serializer):
         return data
 
 
+class OwnerSerializer(serializers.Serializer):
+    """Владелец календаря (Owner)."""
+
+    id = serializers.IntegerField()
+    name = serializers.CharField()
+    email = serializers.EmailField()
+    timezone = serializers.CharField()
+
+
 class ScheduleDaySerializer(serializers.Serializer):
     """Настройки доступности дня недели (ScheduleDay)."""
 
@@ -73,3 +82,17 @@ class ScheduleDaySerializer(serializers.Serializer):
                 "Время начала рабочего дня должно быть раньше времени окончания"
             )
         return attrs
+
+
+class ScheduleRequestSerializer(serializers.Serializer):
+    """Запрос на обновление расписания владельца (ScheduleRequest)."""
+
+    timezone = serializers.CharField()
+    schedule = ScheduleDaySerializer(many=True)
+
+
+class ScheduleResponseSerializer(serializers.Serializer):
+    """Ответ с расписанием владельца (ScheduleResponse)."""
+
+    timezone = serializers.CharField()
+    schedule = ScheduleDaySerializer(many=True)

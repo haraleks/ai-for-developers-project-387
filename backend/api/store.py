@@ -21,6 +21,7 @@ OWNER = {
     "id": 1,
     "name": "Владелец календаря",
     "email": "owner@example.com",
+    "timezone": "Europe/Moscow",
 }
 
 # Типы событий: {id: {"id", "name", "description", "durationMinutes"}}

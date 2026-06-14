@@ -20,6 +20,9 @@ model Owner {
   /** Email владельца */
   @format("email")
   email: string;
+
+  /** Таймзона владельца в формате IANA (например, "Europe/Moscow") */
+  timezone: string;
 }
 
 /**
@@ -167,6 +170,11 @@ interface Public {
     @statusCode statusCode: 409;
     @body body: Error;
   } | Error;
+
+  /** Получить информацию о владельце (включая таймзону) */
+  @route("/owner")
+  @get
+  getOwner(): Owner | Error;
 }
 
 /**
@@ -191,6 +199,30 @@ model ScheduleDay {
 }
 
 /**
+ * Запрос на обновление расписания владельца.
+ * Включает таймзону владельца в формате IANA.
+ */
+model ScheduleRequest {
+  /** Таймзона владельца в формате IANA (например, "Europe/Moscow") */
+  timezone: string;
+
+  /** Массив настроек по дням недели */
+  schedule: ScheduleDay[];
+}
+
+/**
+ * Ответ с расписанием владельца.
+ * Включает таймзону владельца в формате IANA.
+ */
+model ScheduleResponse {
+  /** Таймзона владельца в формате IANA (например, "Europe/Moscow") */
+  timezone: string;
+
+  /** Массив настроек по дням недели */
+  schedule: ScheduleDay[];
+}
+
+/**
  * Административный сценарий владельца:
  * 1. Настройка типов встреч (создание, изменение, удаление).
  * 2. Настройка доступности (рабочие дни, часы работы).
@@ -198,15 +230,15 @@ model ScheduleDay {
  */
 @tag("Owner")
 interface Private {
-  /** Получить текущие настройки доступности владельца */
+  /** Получить текущие настройки доступности владельца (включая таймзону) */
   @route("/owner/schedule")
   @get
-  getSchedule(): ScheduleDay[] | Error;
+  getSchedule(): ScheduleResponse | Error;
 
-  /** Обновить настройки доступности владельца */
+  /** Обновить настройки доступности владельца (включая таймзону) */
   @route("/owner/schedule")
   @put
-  saveSchedule(@body schedule: ScheduleDay[]): ScheduleDay[] | Error;
+  saveSchedule(@body schedule: ScheduleRequest): ScheduleResponse | Error;
 
   /** Получить список всех бронирований для владельца */
   @route("/owner/bookings")
